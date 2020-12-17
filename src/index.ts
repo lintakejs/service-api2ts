@@ -1,8 +1,5 @@
-import { createManager } from './utils'
+import { Interface } from './standard'
 
-async function gen() {
-  const manager = await createManager()
-  // manager.regenerateFiles()
+export {
+  Interface
 }
-
-gen()

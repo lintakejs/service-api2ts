@@ -24,13 +24,13 @@ export class Mocks {
 }
 
 export class DataSourceConfig {
-  originUrl?= '';
-  ssoCookies?=''
+  originUrl= '';
   originType = OriginType.SwaggerV2;
   name?: string;
-  templatePath = 'serviceTemplate';
+  modsTemplatePath?:string;
+  modsTypeTemplatePath?: string;
   surrounding = Surrounding.typeScript;
-  outDir = './server';
+  outDir = './api-server';
   prettierConfig: ResolveConfigOptions = {};
 
   constructor(config: DataSourceConfig) {
@@ -40,12 +40,12 @@ export class DataSourceConfig {
   }
 
   static createFromConfigPath(configPath: string) {
-    const content = fs.readFileSync(configPath, 'utf-8')
     try { 
+      const content = fs.readFileSync(configPath, 'utf-8')
       const configObj = JSON.parse(content)
       return new DataSourceConfig(configObj)
     } catch(e) {
-      throw new Error('配置json失败')
+      throw '配置json失败，请检查配置文件路径是否正确'
     }
   }
 }

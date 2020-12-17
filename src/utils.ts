@@ -6,52 +6,33 @@ import { error } from './debugLog'
 import { DataSourceConfig, Surrounding } from './config/config'
 import { Mod } from './standard'
 
-const PROJECT_ROOT = path.join(process.cwd(), '/server')
+const PROJECT_ROOT = process.cwd()
 
-export const CONFIG_FILE = 'api2ts.json'
-
-export async function createManager(configFile = CONFIG_FILE) {
-  const configPath = await lookForFiles(PROJECT_ROOT, configFile)
-  if (!configPath) {
-    return
-  }
-  
+export async function createManager(configFile: string) {
+  const configPath = path.join(PROJECT_ROOT, configFile)
   const config = DataSourceConfig.createFromConfigPath(configPath)
-  const manager = new Manager(PROJECT_ROOT, config)
+  const manager = new Manager(config)
 
   await manager.ready()
 
   return manager
 }
 
-export function getTemplate(templatePath) {
-  if (!fs.existsSync(templatePath + '.ts')) {
-    throw new Error('不存在模板文件！')
-  }
-  const tsResult = fs.readFileSync(templatePath + '.ts', 'utf8')
-  
-}
-
-export async function lookForFiles(dir: string, fileName: string): Promise<string> {
-  const files = await fs.readdir(dir)
-
-  for (let file of files) {
-    const currName = path.join(dir, file)
-
-    const info = await fs.lstat(currName)
-    if (info.isDirectory()) {
-      if (file === '.git' || file === 'node_modules') {
-        continue;
-      }
-
-      const result = await lookForFiles(currName, fileName)
-
-      if (result) {
-        return result
-      }
-    } else if (info.isFile() && file === fileName) {
-      return currName
+export function getTemplate(templatePath: string, required = true) {
+  if (!fs.existsSync(templatePath)) {
+    if (required) {
+      throw new Error('不存在模板文件！')
+    } else {
+      return undefined
     }
+  }
+
+  try {
+    require('ts-node/register')
+    const fileModule = require(templatePath)
+    return fileModule.default
+  } catch(e) {
+    throw new Error('模板文件编译错误！')
   }
 }
 

@@ -1,0 +1,16 @@
+import { Manager } from './manage';
+import { Mod } from './standard';
+export declare function createManager(configFile: string): Promise<Manager>;
+export declare function getTemplate(templatePath: string, required?: boolean): any;
+export declare function toDashCase(name: string): string;
+export declare function toUpperFirstLetter(text: string): string;
+export declare function getMaxSamePath(paths: string[], samePath?: string): any;
+export declare function getIdentifierFromUrl(url: string, requestType: string, samePath?: string): string;
+export declare function reviseModName(modName: string): string;
+export declare function hasChinese(str: string): RegExpMatchArray;
+export declare function transformCamelCase(name: string): string;
+export declare function transformModsName(mods: Mod[]): void;
+export declare function transformDashCase(name: string): string;
+export declare function getFileName(fileName: string, surrounding: string): string;
+export declare function format(fileContent: string, prettierOpts?: {}): any;
+export declare function getIdentifierFromOperatorId(operationId: string): string;

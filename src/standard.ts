@@ -47,11 +47,12 @@ export class Interface extends Contextable {
   getBodyParamsCode() {
     const bodyParam = this.parameters.find(param => param.in === 'body')
 
-    return (bodyParam && bodyParam.dataType.generateCode(this.getDsName())) || ''
+    // return (bodyParam && bodyParam.dataType.generateCode(this.getDsName())) || ''
+    return bodyParam || ''
   }
 
-  getParamsCode(className = 'Params', surrounding = Surrounding.typeScript) {
-    return `class ${className} {
+  getParamsCode(surrounding = Surrounding.typeScript) {
+    return `class Params {
         ${this.parameters
           .filter(param => param.in === 'path' || param.in === 'query')
           .map(param => param.toPropertyCode(surrounding, true))
@@ -153,7 +154,8 @@ export class StandardDataType extends Contextable {
     return name || 'any'
   }
   /**
-   * @description 生成 Typescript 类型定义的代码
+   * @description 生成type对象
+   * @param usingDef 是否使用公共类
    */
   getInitialValue(usingDef = true) {
     if (this.typeName === 'Array') {

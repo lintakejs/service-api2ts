@@ -1,25 +1,28 @@
-const chalk = require('chalk');
-const log = console.log;
+const ora = require('ora')
+const chalk = require('chalk')
 
-export function bindInfo(onLog) {
-  return (message: string) => {
-    onLog && onLog(message);
-    info(message);
-  };
-}
+const spinner = ora()
 
 export function info(info: string) {
-  log(chalk.bold.blue(info));
+  spinner.info(chalk.bold.blue(info))
 }
 
 export function error(info: string) {
-  log(chalk.bold.red(info));
+  spinner.fail(chalk.bold.red(info))
 }
 
 export function warn(info: string) {
-  log(chalk.bold.yellow(info));
+  spinner.warn(chalk.bold.yellow(info))
 }
 
 export function success(info: string) {
-  log(chalk.bold.green(info));
+  spinner.succeed(chalk.bold.green(info))
+}
+
+export function loadingStart(info: string) {
+  spinner.start(chalk.bold.blue(info))
+}
+
+export function loadingStop() {
+  spinner.stop()
 }

@@ -1,6 +1,6 @@
 import * as _ from 'lodash'
 import * as fs from 'fs-extra'
-import { info } from '../debugLog'
+import { loadingStart, loadingStop, success } from '../debugLog'
 import { Interface, Mod, StandardDataSource, BaseClass } from '../standard'
 import { getFileName, reviseModName, format } from '../utils'
 import { Surrounding } from '../config/config'
@@ -48,7 +48,7 @@ export class FileStructures {
 export class CodeGenerator {
   dataSource: StandardDataSource
 
-  constructor(public surrounding = Surrounding.typeScript, public outDir = '') {}
+  constructor(public surrounding = Surrounding.typeScript, public outDir = '', public modsTemplateDefault: Function, public modsTypeTemplateDefault: Function) {}
 
   setDataSource(dataSource: StandardDataSource) {
     this.dataSource = dataSource
@@ -91,16 +91,7 @@ export class CodeGenerator {
   }
   /** 获取接口内容的类型定义代码 */
   getInterfaceContentInDeclaration(inter: Interface) {
-    const bodyParams = inter.getBodyParamsCode();
-    const requestParams = bodyParams ? `params: Params, bodyParams: ${bodyParams}` : `params: Params`;
-
-    return `
-      export ${inter.getParamsCode('Params', this.surrounding)}
-
-      export type Response = ${inter.responseType};
-      export const init: Response;
-      export function request(${requestParams}): Promise<Response>;
-    `;
+    return this.modsTypeTemplateDefault(inter)
   }
 
   private getInterfaceInDeclaration(inter: Interface) {
@@ -118,6 +109,10 @@ export class CodeGenerator {
    * @description 获取模块的类型定义代码，一个 namespace ，一般不需要覆盖
    */
   getModsDeclaration() {
+    if (!this.modsTypeTemplateDefault || typeof this.modsTypeTemplateDefault !== 'function') {
+      return ``
+    }
+
     const mods = this.dataSource.mods;
     const content = `declare namespace ${this.dataSource.name || 'API'} {
         ${mods
@@ -138,18 +133,10 @@ export class CodeGenerator {
     return content
   }
   /**
-   * @description 获取公共的类型定义代码
-   */
-  getCommonDeclaration() {
-    return ''
-  }
-  /**
    * @description 获取总的类型定义代码
    */
   getDeclaration() {
     return `
-      ${this.getCommonDeclaration()}
-
       ${this.getBaseClassesInDeclaration()}
 
       ${this.getModsDeclaration()}
@@ -210,11 +197,11 @@ export class CodeGenerator {
    * @param inter 接口参数
    */
   getInterfaceContent(inter: Interface) {
-    return `
-      /**
-       * @desc ${inter.description}
-       */
-    `
+    if (!this.modsTemplateDefault || typeof this.modsTemplateDefault !== 'function') {
+      return ``
+    }
+    
+    return this.modsTemplateDefault(inter)
   }
   /**
    * @description 获取单个模块的 index 入口文件
@@ -267,7 +254,6 @@ export class CodeGenerator {
 }
 
 export class FilesManager {
-  report = info
 
   prettierConfig = {}
   
@@ -282,10 +268,11 @@ export class FilesManager {
   }
 
   async regenerate(files: {}) {
-    this.report('文件生成中...')
+    loadingStart('文件生成中...')
     this.initPath(this.baseDir)
     await this.generateFiles(files)
-    this.report('文件生成成功...')
+    loadingStop()
+    success('文件生成成功...')
   }
   /**
    * @description 编译生成文件

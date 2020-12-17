@@ -5,7 +5,7 @@ export class Token {
   constructor(public type: 'Identifier' | 'PreTemplate' | 'EndTemplate' | 'Comma', public value = '') {}
 }
 
-interface AstNode {
+export interface AstNode {
   name: string;
   templateArgs: AstNode[];
 }

@@ -1,9 +1,10 @@
 import fetch from 'node-fetch'
-import { DataSourceConfig } from "../config/config";
-import { StandardDataSource } from '../standard';
+import { loadingStart, loadingStop, success } from '../debugLog'
+import { DataSourceConfig } from "../config/config"
+import { StandardDataSource } from '../standard'
 
 export class OriginBaseReader {
-  constructor(protected config: DataSourceConfig, protected report: any) {}
+  constructor(protected config: DataSourceConfig) {}
 
   /** 数据转换，可覆盖 */
   transform2Standard(data) {
@@ -14,11 +15,7 @@ export class OriginBaseReader {
    * @param url 数据地址
    */
   fetchMethod(url: string) {
-    return fetch(url, {
-      headers: {
-        Cookie: this.config.ssoCookies
-      }
-    }).then(async res => {
+    return fetch(url).then(async res => {
       const sourceData = await res.text()
       return sourceData
     })
@@ -28,11 +25,12 @@ export class OriginBaseReader {
    */
   async fetchData() {
     // 获取数据源
-    this.report('获取远程数据中...');
-    let swaggerJsonStr: string = await this.fetchMethod(this.config.originUrl);
+    loadingStart('获取远程数据中...')
+    let swaggerJsonStr: string = await this.fetchMethod(this.config.originUrl)
     
-    const data = await JSON.parse(swaggerJsonStr);
-    this.report('远程数据获取成功！');
+    const data = await JSON.parse(swaggerJsonStr)
+    loadingStop()
+    success('远程数据获取成功！')
 
     return data
   }
@@ -43,7 +41,7 @@ export class OriginBaseReader {
     try {
       const data = await this.fetchData()
       let remoteDataSource = this.transform2Standard(data)
-      this.report('远程数据解析完毕!');
+      success('远程数据解析完毕!');
       return remoteDataSource
     } catch(e) {
       throw new Error('读取远程接口数据失败！' + e.toString());

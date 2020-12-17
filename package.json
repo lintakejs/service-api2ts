@@ -13,7 +13,7 @@
     "type": "git",
     "url": "git+https://github.com/lintakejs/service-api2ts.git"
   },
-  "author": "",
+  "author": "Wei Lin <373988402@qq.com>",
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/lintakejs/service-api2ts/issues"

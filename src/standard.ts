@@ -25,6 +25,10 @@ class Contextable {
   getContext() {
     return this.context
   }
+
+  setContext(context) {
+    this.context = context
+  }
 }
 
 export class Interface extends Contextable {
@@ -44,19 +48,21 @@ export class Interface extends Contextable {
     return this.response.generateCode(this.getDsName())
   }
 
-  getBodyParamsCode() {
+  get bodyParamsCode() {
     const bodyParam = this.parameters.find(param => param.in === 'body')
-
-    // return (bodyParam && bodyParam.dataType.generateCode(this.getDsName())) || ''
-    return bodyParam || ''
+    
+    return (bodyParam && bodyParam.dataType.generateCode(this.getDsName())) || ''
   }
 
-  getParamsCode(surrounding = Surrounding.typeScript) {
+  get paramsCode() {
+    const paramsList = this.parameters.filter(param => param.in === 'path' || param.in === 'query')
+    
+    if (paramsList.length === 0) {
+      return ''
+    }
+
     return `class Params {
-        ${this.parameters
-          .filter(param => param.in === 'path' || param.in === 'query')
-          .map(param => param.toPropertyCode(surrounding, true))
-          .join('')}
+        ${paramsList.map(param => param.toPropertyCode(Surrounding.typeScript, true)).join('')}
       }
     `
   }
@@ -116,7 +122,7 @@ export class StandardDataType extends Contextable {
     let name = this.typeName
 
     if (this.isDefsType) {
-      name = originName ? `defs.${originName}.${this.typeName}` : `defs.${this.typeName}`
+      name = originName ? `${originName}.${this.typeName}` : `${this.typeName}`
     }
 
     return name
@@ -210,6 +216,11 @@ export class Property extends Contextable {
     super(prop)
   }
 
+  setContext(context) {
+    super.setContext(context)
+    this.dataType.setContext(context)
+  }
+
   toPropertyCode(surrounding = Surrounding.typeScript, hasRequired = false, optional = false) {
     let optionalSignal = hasRequired && optional ? '?' : ''
 
@@ -261,6 +272,11 @@ export class BaseClass extends Contextable {
   properties: Array<Property>
   templateArgs: StandardDataType[]
 
+  setContext(context: any) {
+    super.setContext(context)
+    this.properties.forEach(prop => prop.setContext(context))
+  }
+
   constructor(base: Partial<BaseClass>) {
     super(base)
 
@@ -272,6 +288,11 @@ export class Mod extends Contextable {
   description: string
   interfaces: Interface[]
   name: string
+
+  setContext(context: any) {
+    super.setContext(context)
+    this.interfaces.forEach(inter => inter.setContext(context))
+  }
 
   constructor(mod: Partial<Mod>) {
     super(mod)
@@ -291,10 +312,16 @@ export class StandardDataSource {
     this.mods = standard.mods
 
     this.reOrder()
+    this.setContext()
   }
 
   reOrder() {
     this.baseClasses = _.orderBy(this.baseClasses, 'name')
     this.mods = _.orderBy(this.mods, 'name')
+  }
+
+  setContext() {
+    this.baseClasses.forEach(base => base.setContext({ dataSource: this }))
+    this.mods.forEach(mod => mod.setContext({ dataSource: this }))
   }
 }

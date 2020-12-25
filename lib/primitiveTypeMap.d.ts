@@ -12,5 +12,4 @@ export declare const PrimitiveTypeMap: {
     Map: string;
     map: string;
     List: string;
-    Collection: string;
 };

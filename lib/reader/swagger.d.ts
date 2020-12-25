@@ -96,6 +96,6 @@ export declare class SwaggerV2Reader extends OriginBaseReader {
 export declare class SwaggerV3Reader extends OriginBaseReader {
 }
 export declare function parseSwaggerMods(swagger: SwaggerDataSource, defNames: string[], usingOperationId: boolean, compileTempateKeyword?: string): Mod[];
-export declare function transformSwaggerData2Standard(swagger: SwaggerDataSource, usingOperationId?: boolean, originName?: string): StandardDataSource;
+export declare function transformSwaggerData2Standard(swagger: SwaggerDataSource, originName?: string, usingOperationId?: boolean): StandardDataSource;
 export declare function compileTemplate(template: string, keyword?: string): import("../compiler").AstNode;
 export {};

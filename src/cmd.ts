@@ -10,9 +10,6 @@ const currentVersion = packageInfo.version
 
 program.description('base swagger v2 generator api code')
 program.version(currentVersion)
-program.on('--help', () => {
-  console.log('help')
-})
 
 program.command('create [config-file]').action(async (filePath) => {
   try {

@@ -76,8 +76,9 @@ class Schema {
     classTemplateArgs = [] as StandardDataType[],
     compileTemplateKeyword?: string
   ) {
-    const { items, $ref, type, additionalProperties } = schema;
-    let typeName = schema.type as string;
+    const { items, $ref, type, additionalProperties } = schema
+    
+    let typeName = schema.type as string
 
     if (type === 'array') {
       let itemsType = _.get(items, 'type', '')
@@ -291,7 +292,7 @@ export class SwaggerDataSource {
 
 export class SwaggerV2Reader extends OriginBaseReader {
   transform2Standard(data) {
-    return transformSwaggerData2Standard(data)
+    return transformSwaggerData2Standard(data, this.config.name)
   }
 }
 
@@ -411,9 +412,8 @@ export function parseSwaggerMods(
  * 
  * @param swagger swagger openAPI数据
  * @param usingOperationId 是否去重
- * @param originName 源数据的项目名
  */
-export function transformSwaggerData2Standard(swagger: SwaggerDataSource, usingOperationId = true, originName = '') {
+export function transformSwaggerData2Standard(swagger: SwaggerDataSource, originName = '', usingOperationId = true) {
   const draftClasses = _.map(swagger.definitions, (def, defName) => {
     const defNameAst = compileTemplate(defName)
 
@@ -435,7 +435,7 @@ export function transformSwaggerData2Standard(swagger: SwaggerDataSource, usingO
     const templateArgs = dataType.typeArgs
     const { description, properties } = clazz.def
     const requiredProps = clazz.def.required || []
-
+    
     const props = _.map(properties, (prop, propName) => {
       const { $ref, description, type, items, additionalProperties } = prop
       const required = requiredProps.includes(propName)
@@ -450,7 +450,6 @@ export function transformSwaggerData2Standard(swagger: SwaggerDataSource, usingO
         defNames,
         templateArgs
       )
-
       return new Property({
         dataType,
         name: propName,

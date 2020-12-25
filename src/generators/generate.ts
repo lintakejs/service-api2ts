@@ -31,13 +31,11 @@ export class FileStructures {
 
       const modName = reviseModName(mod.name)
       mods[modName] = currMod
-      mods[indexFileName] = generator.getModsIndex()
     })
 
     const result = {
       [getFileName('baseClass', this.surrounding)]: generator.getBaseClassesIndex(),
-      mods: mods,
-      [indexFileName]: generator.getIndex(),
+      modules: mods,
       'api.d.ts': generator.getDeclaration()
     }
 
@@ -55,7 +53,7 @@ export class CodeGenerator {
   }
 
   /** 获取某个基类的类型定义代码 */
-  getBaseClassInDeclaration(base: BaseClass) {
+  getBaseClassInDeclaration(base: BaseClass) {    
     if (base.templateArgs && base.templateArgs.length) {
       return `class ${base.name}<${base.templateArgs.map((_, index) => `T${index} = any`).join(', ')}> {
         ${base.properties.map(prop => prop.toPropertyCode(Surrounding.typeScript, true)).join('\n')}
@@ -143,28 +141,6 @@ export class CodeGenerator {
     `
   }
   /**
-   * @description 获取接口类和基类的总的 index 入口文件代码
-   */
-  getIndex() {
-    let conclusion = `
-      import * as defs from './baseClass';
-      import './mods/';
-
-      ${this.surrounding === Surrounding.typeScript ? '(window as any)' : 'window'}.defs = defs;
-    `
-
-    // dataSource name means multiple dataSource
-    if (this.dataSource.name) {
-      conclusion = `
-        import { ${this.dataSource.name} as defs } from './baseClass';
-        export { ${this.dataSource.name} } from './mods/';
-        export { defs };
-      `
-    }
-
-    return conclusion
-  }
-  /**
    * @description 获取所有基类文件代码
    */
   getBaseClassesIndex() {
@@ -221,34 +197,6 @@ export class CodeGenerator {
       export {
         ${mod.interfaces.map(inter => inter.name).join(', \n')}
       }
-    `
-  }
-  /** 获取所有模块的 index 入口文件 */
-  getModsIndex() {
-    let conclusion = `
-      ${this.surrounding === Surrounding.typeScript ? '(window as any)' : 'window'}.API = {
-        ${this.dataSource.mods.map(mod => reviseModName(mod.name)).join(', \n')}
-      };
-    `
-
-    // dataSource name means multiple dataSource
-    if (this.dataSource.name) {
-      conclusion = `
-        export const ${this.dataSource.name} = {
-          ${this.dataSource.mods.map(mod => reviseModName(mod.name)).join(', \n')}
-        };
-      `
-    }
-
-    return `
-      ${this.dataSource.mods
-        .map(mod => {
-          const modName = reviseModName(mod.name);
-          return `import * as ${modName} from './${modName}';`
-        })
-        .join('\n')}
-
-      ${conclusion}
     `
   }
 }
@@ -333,6 +281,6 @@ export class FilesManager {
       return code;
     }
 
-    return format(code, this.prettierConfig);
+    return format(code, this.prettierConfig)
   }
 }

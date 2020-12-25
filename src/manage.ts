@@ -29,7 +29,7 @@ export class Manager {
    */
   async readRemoteDataSource(config) {
     const remoteDataSource = await readRemoteDataSource(config);
-
+    
     return remoteDataSource
   }
   /**

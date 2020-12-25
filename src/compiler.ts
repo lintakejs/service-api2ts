@@ -73,7 +73,7 @@ export function parseAst2StandardDataType(
   const { name, templateArgs } = ast
   // 怪异类型兼容
   let typeName = PrimitiveTypeMap[name] || name
-
+  
   const isDefsType = defNames.includes(name)
   const typeArgs = templateArgs.map(arg => {
     return parseAst2StandardDataType(arg, defNames, classTemplateArgs);

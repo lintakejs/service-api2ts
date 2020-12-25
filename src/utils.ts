@@ -1,6 +1,7 @@
 import * as path from 'path'
 import * as fs from 'fs-extra'
 import * as prettier from 'prettier'
+import * as ts from 'typescript'
 import { Manager } from './manage'
 import { error } from './debugLog'
 import { DataSourceConfig, Surrounding } from './config/config'
@@ -26,14 +27,31 @@ export function getTemplate(templatePath: string, required = true) {
       return undefined
     }
   }
+  const tsResult = fs.readFileSync(templatePath, 'utf8')
+  const jsResult = ts.transpileModule(tsResult, {
+    compilerOptions: {
+      target: ts.ScriptTarget.ES2015,
+      module: ts.ModuleKind.CommonJS
+    }
+  })
+  const resovleTemplatePath = templatePath.replace('.ts', '')
+  const noCacheFix = (Math.random() + '').slice(2, 5)
+  const jsName = resovleTemplatePath + noCacheFix + '.js'
+  let templateResult
 
   try {
-    require('ts-node/register')
-    const fileModule = require(templatePath)
-    return fileModule.default
+    fs.writeFileSync(jsName, jsResult.outputText, 'utf8')
+    templateResult = require(jsName)
+    fs.removeSync(jsName)
   } catch(e) {
-    throw new Error('模板文件编译错误！')
+    if (fs.existsSync(jsName)) {
+      fs.removeSync(jsName);
+    }
+    if (!templateResult) {
+      throw new Error('模板文件编译错误！');
+    }
   }
+  return templateResult.default
 }
 
 export function toDashCase(name: string) {

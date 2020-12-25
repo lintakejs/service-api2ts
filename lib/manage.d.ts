@@ -11,7 +11,7 @@ export declare class Manager {
     regenerateFiles(): Promise<void>;
     getGeneratedFiles(): {
         [x: string]: {};
-        mods: {};
+        modules: {};
         'api.d.ts': string;
     };
     setFilesManager(): void;

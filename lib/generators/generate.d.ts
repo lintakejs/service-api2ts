@@ -6,12 +6,12 @@ export declare class FileStructures {
     constructor(generators: CodeGenerator, surrounding?: Surrounding);
     getFileStructures(): {
         [x: string]: {};
-        mods: {};
+        modules: {};
         'api.d.ts': string;
     };
     getOriginFileStructures(generator: CodeGenerator): {
         [x: string]: {};
-        mods: {};
+        modules: {};
         'api.d.ts': string;
     };
 }
@@ -29,11 +29,9 @@ export declare class CodeGenerator {
     private getInterfaceInDeclaration;
     getModsDeclaration(): string;
     getDeclaration(): string;
-    getIndex(): string;
     getBaseClassesIndex(): string;
     getInterfaceContent(inter: Interface): any;
     getModIndex(mod: Mod): string;
-    getModsIndex(): string;
 }
 export declare class FilesManager {
     fileStructures: FileStructures;

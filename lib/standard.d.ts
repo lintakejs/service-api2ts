@@ -4,6 +4,7 @@ declare class Contextable {
     constructor(arg?: {});
     getDsName(): any;
     getContext(): any;
+    setContext(context: any): void;
 }
 export declare class Interface extends Contextable {
     consumes: string[];
@@ -15,8 +16,8 @@ export declare class Interface extends Contextable {
     path: string;
     constructor(inter: Partial<Interface>);
     get responseType(): any;
-    getBodyParamsCode(): "" | Property;
-    getParamsCode(surrounding?: Surrounding): string;
+    get bodyParamsCode(): any;
+    get paramsCode(): string;
 }
 export declare class StandardDataType extends Contextable {
     typeArgs: StandardDataType[];
@@ -41,6 +42,7 @@ export declare class Property extends Contextable {
     required: boolean;
     in: 'query' | 'body' | 'path' | 'formData' | 'header';
     constructor(prop: Partial<Property>);
+    setContext(context: any): void;
     toPropertyCode(surrounding?: Surrounding, hasRequired?: boolean, optional?: boolean): any;
     toPropertyCodeWithInitValue(baseName?: string): string;
 }
@@ -49,12 +51,14 @@ export declare class BaseClass extends Contextable {
     description: string;
     properties: Array<Property>;
     templateArgs: StandardDataType[];
+    setContext(context: any): void;
     constructor(base: Partial<BaseClass>);
 }
 export declare class Mod extends Contextable {
     description: string;
     interfaces: Interface[];
     name: string;
+    setContext(context: any): void;
     constructor(mod: Partial<Mod>);
 }
 export declare class StandardDataSource {
@@ -67,5 +71,6 @@ export declare class StandardDataSource {
         mods: Mod[];
     });
     reOrder(): void;
+    setContext(): void;
 }
 export {};

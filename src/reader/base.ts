@@ -6,7 +6,9 @@ import { StandardDataSource } from '../standard'
 export class OriginBaseReader {
   constructor(protected config: DataSourceConfig) {}
 
-  /** 数据转换，可覆盖 */
+  /**
+   * @description 数据转换，可覆盖
+  */
   transform2Standard(data) {
     return data;
   }

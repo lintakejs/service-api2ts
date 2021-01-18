@@ -70,11 +70,10 @@ export class CodeGenerator {
    */
   getBaseClassesInDeclaration() {
     const content = `
-    type ObjectMap<Key extends string | number | symbol = any, Value = any> = {
-      [key in Key]: Value;
-    }
-
     declare namespace ${this.dataSource.name || 'defs'} {
+      type ObjectMap<Key extends string | number | symbol = any, Value = any> = {
+        [key in Key]: Value;
+      }
       ${this.dataSource.baseClasses
         .map(
           base => `

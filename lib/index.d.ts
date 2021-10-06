@@ -1,2 +1,2 @@
-import { Interface } from './standard';
-export { Interface };
+import { StandardInterface } from './standard/';
+export { StandardInterface };

@@ -1,286 +1,23 @@
-import * as _ from 'lodash'
 import { OriginBaseReader } from './base'
-import { Token, Parser, parseAst2StandardDataType } from '../compiler'
-import { StandardDataType, Property, BaseClass, StandardDataSource, Interface, Mod } from '../standard'
-import { 
-  toDashCase, 
-  getMaxSamePath, 
-  getIdentifierFromUrl, 
-  getIdentifierFromOperatorId, 
-  hasChinese, 
-  transformCamelCase, 
-  transformModsName 
-} from '../utils'
+import { SwaggerInterface, RequestMethod, SwaggerProperty, SwaggerSchema } from './swagger/'
+import { compolerUtils } from '../compiler/'
+import { StandardProperty, StandardBaseClass, StandardDataSource, StandardMod } from '../standard/'
 
-enum SwaggerType {
-  integer = 'integer',
-  string = 'string',
-  file = 'string',
-  array = 'array',
-  number = 'number',
-  boolean = 'boolean',
-  object = 'object'
-}
+import { hasChinese, toDashCase, transformCamelCase, getMaxSamePath, getIdentifierFromUrl } from '../utils'
+import * as _ from 'lodash'
+import { DataSourceConfig } from 'src/config/config'
 
-class SwaggerProperty {
-  type: SwaggerType;
-  enum? = [] as string[];
-  items? = null as {
-    type?: SwaggerType;
-    $ref?: string;
-  };
-  additionalProperties: SwaggerProperty;
-  $ref? = '';
-  description? = '';
-  name: string;
-}
-
-class SwaggerParameter {
-  /** 字段名 */
-  name = '';
-
-  in: 'query' | 'body' | 'path';
-
-  /** 描述 */
-  description = '';
-
-  /** 是否必填 */
-  required: boolean;
-
-  /** 类型 */
-  type: SwaggerType;
-
-  enum: string[];
-
-  items? = null as {
-    type?: SwaggerType;
-    $ref?: string;
-  };
-
-  schema: Schema;
-}
-
-class Schema {
-  enum?: string[];
-  type: SwaggerType;
-  additionalProperties?: Schema;
-  items: {
-    type?: SwaggerType;
-    $ref?: string;
-  };
-  $ref: string;
-
-  static parseSwaggerSchema2StandardDataType(
-    schema: Schema,
-    defNames: string[],
-    classTemplateArgs = [] as StandardDataType[],
-    compileTemplateKeyword?: string
-  ) {
-    const { items, $ref, type, additionalProperties } = schema
-    
-    let typeName = schema.type as string
-
-    if (type === 'array') {
-      let itemsType = _.get(items, 'type', '')
-      const itemsRef = _.get(items, '$ref', '')
-
-      if (itemsType) {
-        if (itemsType === 'integer') {
-          itemsType = 'number'
-        }
-
-        if (itemsType === 'file') {
-          itemsType = 'File'
-        }
-
-        let contentType = new StandardDataType([], itemsType, false, -1)
-
-        if (itemsType === 'array') {
-          contentType = new StandardDataType([new StandardDataType()], 'Array', false, -1)
-        }
-
-        return new StandardDataType([contentType], 'Array', false, -1)
-      }
-
-      if (itemsRef) {
-        const ast = compileTemplate(itemsRef, compileTemplateKeyword)
-        const contentType = parseAst2StandardDataType(ast, defNames, classTemplateArgs)
-
-        return new StandardDataType([contentType], 'Array', false, -1)
-      }
-    }
-
-    if (typeName === 'integer') {
-      typeName = 'number'
-    }
-
-    if (typeName === 'file') {
-      typeName = 'File'
-    }
-
-    if ($ref) {
-      const ast = compileTemplate($ref)
-
-      if (!ast) {
-        return new StandardDataType()
-      }
-
-      return parseAst2StandardDataType(ast, defNames, classTemplateArgs)
-    }
-
-    if (schema.enum) {
-      return StandardDataType.constructorWithEnum(parseSwaggerEnumType(schema.enum))
-    }
-
-    if (type === 'object') {
-      if (additionalProperties) {
-        const typeArgs = [
-          new StandardDataType(),
-          Schema.parseSwaggerSchema2StandardDataType(
-            additionalProperties,
-            defNames,
-            classTemplateArgs,
-            compileTemplateKeyword
-          )
-        ]
-        return new StandardDataType(typeArgs, 'ObjectMap', false)
-      }
-    }
-
-    return new StandardDataType([], typeName, false)
-  }
-}
-
-class SwaggerInterface {
-  consumes = [] as string[];
-
-  parameters = [] as SwaggerParameter[];
-
-  summary = '';
-
-  description: string;
-
-  initialValue: string;
-
-  tags = [] as string[];
-
-  response: Schema;
-
-  method: string;
-
-  name: string;
-
-  path: string;
-
-  samePath: string;
-
-  operationId: string;
-
-  static transformSwaggerInterface2Standard(
-    inter: SwaggerInterface,
-    usingOperationId: boolean,
-    samePath: string,
-    defNames: string[] = [],
-    compileTempateKeyword?: string
-  ) {
-    let name = '';
-
-    if (!usingOperationId || !inter.operationId) {
-      name = getIdentifierFromUrl(inter.path, inter.method, samePath);
-    } else {
-      name = getIdentifierFromOperatorId(inter.operationId);
-    }
-
-    const responseSchema = _.get(inter, 'responses.200.schema', {}) as Schema;
-    const response = Schema.parseSwaggerSchema2StandardDataType(responseSchema, defNames, [], compileTempateKeyword);
-
-    const parameters = (inter.parameters || []).map(param => {
-      let paramSchema: Schema;
-      const { description, items, name, type, schema = {} as Schema, required } = param;
-      // 如果请求参数在body中的话，处理方式与response保持一致，因为他们本身的结构是一样的
-      if (param.in === 'body') {
-        paramSchema = param.schema;
-      } else {
-        paramSchema = {
-          enum: param.enum,
-          items,
-          type,
-          $ref: _.get(schema, '$ref')
-        };
-      }
-
-      return new Property({
-        in: param.in,
-        description,
-        name: name.includes('/') ? name.split('/').join('') : name,
-        required,
-        dataType: Schema.parseSwaggerSchema2StandardDataType(paramSchema, defNames)
-      });
-    });
-
-    let interDesc = inter.summary;
-
-    if (inter.description) {
-      if (interDesc) {
-        interDesc += '\n' + inter.description;
-      } else {
-        interDesc = inter.description;
-      }
-    }
-
-    const standardInterface = new Interface({
-      consumes: inter.consumes,
-      description: interDesc,
-      name,
-      method: inter.method,
-      path: inter.path,
-      response,
-      /** 后端返回的参数可能重复 */
-      parameters: _.unionBy(parameters, 'name')
-    });
-
-    return standardInterface;
-  }
-}
-
-interface SwaggerReferenceObject {
-  $ref: string;
-}
-// TODO: $ref, options, head
 interface SwaggerPathItemObject {
   get?: SwaggerInterface;
   post?: SwaggerInterface;
   put?: SwaggerInterface;
   patch?: SwaggerInterface;
   delete?: SwaggerInterface;
-  parameters?: SwaggerParameter[] | SwaggerReferenceObject[];
 }
 
-export function parseSwaggerEnumType(enumStrs: string[]) {
-  let enums = enumStrs as Array<string | number>;
-
-  enumStrs.forEach(str => {
-    if (!Number.isNaN(Number(str))) {
-      enums.push(Number(str));
-    }
-  });
-
-  return enums
-    .filter(str => {
-      return String(str).match(/^[0-9a-zA-Z\_\-\$]+$/);
-    })
-    .map(numOrStr => {
-      if (typeof numOrStr === 'string') {
-        return `'${numOrStr}'`;
-      }
-
-      return numOrStr;
-    });
-}
-
-export class SwaggerDataSource {
-  paths: { [key in string]: SwaggerPathItemObject };
+interface SwaggerDataSource {
   tags: { name: string; description: string }[];
+  paths: { [key in string]: SwaggerPathItemObject };
   definitions: {
     [key in string]: {
       description: string;
@@ -290,135 +27,14 @@ export class SwaggerDataSource {
   };
 }
 
-export class SwaggerV2Reader extends OriginBaseReader {
-  transform2Standard(data) {
-    return transformSwaggerData2Standard(data, this.config.name)
-  }
-}
-
-export class SwaggerV3Reader extends OriginBaseReader {}
-
-export function parseSwaggerMods(
-  swagger: SwaggerDataSource,
-  defNames: string[],
-  usingOperationId: boolean,
-  compileTempateKeyword?: string
-) {
-  const allSwaggerInterfaces = [] as SwaggerInterface[]
-  _.forEach(swagger.paths, (methodInters, path) => {
-    const pathItemObject = _.cloneDeep(methodInters)
-
-    if (Array.isArray(pathItemObject.parameters)) {
-      ['get', 'post', 'patch', 'delete', 'put'].forEach(method => {
-        if (pathItemObject[method]) {
-          pathItemObject[method].parameters = (pathItemObject[method].parameters || []).concat(
-            pathItemObject.parameters
-          )
-        }
-      })
-
-      delete pathItemObject.parameters
-    }
-    
-    _.forEach(pathItemObject as Omit<SwaggerPathItemObject, 'parameters'>, (inter, method) => {
-      inter.path = path
-      inter.method = method
-
-      if (!inter.tags) {
-        inter.tags = ['defaultModule'];
-      }
-
-      allSwaggerInterfaces.push(inter)
-    })
-  })
-
-  if (!swagger.tags) {
-    swagger.tags = [];
-  }
-  // 存入默认tags
-  swagger.tags.push({
-    name: 'defaultModule',
-    description: 'defaultModule'
-  })
-
-  // swagger 2.0 中 tags属性是可选的
-  const mods = swagger.tags
-    .map(tag => {
-      const modInterfaces = allSwaggerInterfaces.filter(inter => {
-        // swagger 3.0+ 中可能不存在 description 字段
-        if (tag.description === undefined || tag.description === null) {
-          tag.description = ''
-        }
-
-        return (
-          inter.tags.includes(tag.name) ||
-          inter.tags.includes(tag.name.toLowerCase()) ||
-          inter.tags.includes(tag.description.toLowerCase()) ||
-          inter.tags.includes(toDashCase(tag.description))
-        );
-      });
-
-      const samePath = getMaxSamePath(modInterfaces.map(inter => inter.path.slice(1)))
-
-      const standardInterfaces = modInterfaces.map(inter => {
-        return SwaggerInterface.transformSwaggerInterface2Standard(
-          inter,
-          usingOperationId,
-          samePath,
-          defNames,
-          compileTempateKeyword
-        );
-      });
-
-      // 判断是否有重复的 name
-      if (usingOperationId) {
-        const names = [] as string[];
-
-        standardInterfaces.forEach(inter => {
-          if (!names.includes(inter.name)) {
-            names.push(inter.name);
-          } else {
-            inter.name = getIdentifierFromUrl(inter.path, inter.method, samePath);
-          }
-        });
-      }
-
-      // 兼容某些项目把swagger tag的name和description弄反的情况
-      if (hasChinese(tag.name)) {
-        // 当检测到name包含中文的时候，采用description
-        return new Mod({
-          description: tag.name,
-          interfaces: _.uniqBy(standardInterfaces, 'name'),
-          name: transformCamelCase(tag.description)
-        });
-      } else {
-        return new Mod({
-          description: tag.description,
-          interfaces: _.uniqBy(standardInterfaces, 'name'),
-          name: transformCamelCase(tag.name)
-        });
-      }
-    })
-    .filter(mod => {
-      return mod.interfaces.length
-    })
-
-  transformModsName(mods)
-
-  return mods
-}
-
-/**
- * 
- * @param swagger swagger openAPI数据
- * @param usingOperationId 是否去重
- */
-export function transformSwaggerData2Standard(swagger: SwaggerDataSource, originName = '', usingOperationId = true) {
+// definitions 词法解析
+function transfromSwaggerDefinition2BaseClass (swagger: SwaggerDataSource, config: DataSourceConfig) {
+  // 解析defintions词法树
   const draftClasses = _.map(swagger.definitions, (def, defName) => {
-    const defNameAst = compileTemplate(defName)
+    const defNameAst = compolerUtils.compileTemplate(defName)
 
     if (!defNameAst) {
-      throw new Error('compiler error in defname: ' + defName);
+      throw new Error('compiler error in definitionName: ' + defName)
     }
 
     return {
@@ -427,30 +43,31 @@ export function transformSwaggerData2Standard(swagger: SwaggerDataSource, origin
       def
     }
   })
-
+  // definitions 词法的 name，即api(ts)命名空间内的dto class name
   const defNames = draftClasses.map(clazz => clazz.name)
-
+  // 解析出api(ts)的base classes
   const baseClasses = draftClasses.map(clazz => {
-    const dataType = parseAst2StandardDataType(clazz.defNameAst, defNames, [])
+    const dataType = compolerUtils.parseAst2StandardDataType(clazz.defNameAst, defNames, config.name)
     const templateArgs = dataType.typeArgs
     const { description, properties } = clazz.def
     const requiredProps = clazz.def.required || []
-    
+    // 解析base class字段参数
     const props = _.map(properties, (prop, propName) => {
       const { $ref, description, type, items, additionalProperties } = prop
       const required = requiredProps.includes(propName)
-      const dataType = Schema.parseSwaggerSchema2StandardDataType(
+      const dataType = SwaggerSchema.parseSwaggerSchema2StandardDataType(
         {
           $ref,
-          enum: prop.enum,
           items,
           type,
           additionalProperties
-        } as Schema,
+        },
         defNames,
+        config.name,
         templateArgs
       )
-      return new Property({
+
+      return new StandardProperty({
         dataType,
         name: propName,
         description,
@@ -458,7 +75,7 @@ export function transformSwaggerData2Standard(swagger: SwaggerDataSource, origin
       })
     })
 
-    return new BaseClass({
+    return new StandardBaseClass({
       description,
       name: clazz.name,
       properties: props,
@@ -466,77 +83,143 @@ export function transformSwaggerData2Standard(swagger: SwaggerDataSource, origin
     })
   })
 
+  /** 聚合属性，lodash 应当由属性量小的聚合至大的，否则会被空值覆盖 */
   baseClasses.sort((pre, next) => {
     if (pre.name === next.name && pre.templateArgs.length === next.templateArgs.length) {
       return pre.templateArgs.filter(({ isDefsType }) => isDefsType).length >
         next.templateArgs.filter(({ isDefsType }) => isDefsType).length
         ? -1
-        : 1;
+        : 1
     }
 
     if (pre.name === next.name) {
-      return pre.templateArgs.length > next.templateArgs.length ? -1 : 1;
+      return pre.templateArgs.length > next.templateArgs.length ? -1 : 1
     }
 
-    return next.name > pre.name ? 1 : -1;
+    return next.name > pre.name ? 1 : -1
   })
 
-  return new StandardDataSource({
-    baseClasses: _.uniqBy(baseClasses, base => base.name),
-    mods: parseSwaggerMods(swagger, defNames, usingOperationId),
-    name: originName
+  return {
+    draftClasses,
+    defNames,
+    baseClasses
+  }
+}
+// 解析api数据至modules中，返回相关modules
+function transformSwaggerPath2Mods (
+  swagger: SwaggerDataSource,
+  defNames: string[],
+  usingOperationId: boolean,
+  defOriginName: string
+) {
+  /**
+   * swaggerInterfaces demo: {
+   *   path: "/controller/api"
+   *   method: "post",
+   *   operationId: "唯一id",
+   *   summary: "接口说明",
+   *   parameters: [
+   *     {
+   *        name: "字段名",
+   *        in: "body",
+   *        description: "描述",
+   *        required: true | false => "是否必填",
+   *        type: "java数据类型",
+   *        // 只有type === "array"时才存在
+   *        items: {
+   *          type: "java数据类型",
+   *          $ref: "#/definitions/Dto 指向definition中实体路径"
+   *        },
+   *        schema: {
+   *          type: "java数据类型",
+   *          // 只有type === "array"时才存在
+   *          items: {
+   *            type: "java数据类型",
+   *            $ref: "#/definitions/Dto 指向definition中实体路径"
+   *          }
+   *        }
+   *     }
+   *   ]
+   * }
+   */
+  const allSwaggerInterfaces: SwaggerInterface[] = []
+  
+  _.map(swagger.paths, (pathItem, path) => {
+    _.forEach(pathItem, (inter, method: RequestMethod) => {
+      inter.path = path
+      inter.method = method
+
+      allSwaggerInterfaces.push(inter)
+    })
   })
+
+  const mods = swagger.tags.map(tag => {
+    const modInterfaces = allSwaggerInterfaces.filter(inter => (
+      inter.tags.includes(tag.name) ||
+      inter.tags.includes(tag.name.toLowerCase()) ||
+      inter.tags.includes(tag.description.toLowerCase()) ||
+      inter.tags.includes(toDashCase(tag.description))
+    ))
+    
+    const samePath = getMaxSamePath(modInterfaces.map(inter => inter.path.slice(1)))
+
+    const standardInterfaces = modInterfaces.map(inter =>
+      SwaggerInterface.transformSwaggerInterface2StandardInterface(
+        inter,
+        usingOperationId,
+        samePath,
+        defNames,
+        defOriginName
+      )
+    )
+    // 如果有同名的api。需要换一个
+    const names = [] as string[]
+    standardInterfaces.forEach(inter => {
+      if (!names.includes(inter.name)) {
+        names.push(inter.name)
+      } else {
+        inter.name = getIdentifierFromUrl(inter.path, inter.method, samePath)
+      }
+    })
+    
+    if (hasChinese(tag.name)) {
+      return new StandardMod({
+        description: tag.description,
+        interfaces: standardInterfaces,
+        name: transformCamelCase(tag.description)
+      })
+    } else {
+      return new StandardMod({
+        description: tag.description,
+        interfaces: standardInterfaces,
+        name: transformCamelCase(tag.name)
+      })
+    }
+  }).filter(mod => mod.interfaces.length)
+  
+  return mods
 }
 
-export function compileTemplate(template: string, keyword = '#/definitions/') {
-  // 词法分析
-  if (template.startsWith(keyword)) {
-    template = template.slice(keyword.length);
-  }
-  if (!template) {
-    return null;
-  }
+/**
+ *
+ * @param swagger api.json
+ * @param usingOperationId 是否去重
+ */
+function transformSwaggerData2Standard (swagger: SwaggerDataSource, config: DataSourceConfig, usingOperationId = true) {
+  const { baseClasses, defNames } = transfromSwaggerDefinition2BaseClass(swagger, config)
+  const mods = transformSwaggerPath2Mods(swagger, defNames, usingOperationId, config.name)
   
-  const Identifier = /^[a-zA-Z_][a-zA-Z_0-9-]*/
-  
-  const PreTemplate = /^«/
-
-  const EndTemplate = /^»/
-  
-  const Comma = /^,/
-
-  let code = template
-  let matchedText = ''
-  let nodes = [] as Token[]
-
-  while (code) {
-    // 去掉空格,包括两端及中间的空格
-    code = code.replace(/\s/g, '')
-    // 替换.为_
-    code = code.replace(/\./g, '_')
-
-    if (code.match(Identifier)) {
-      matchedText = code.match(Identifier)[0]
-
-      nodes.push(new Token('Identifier', matchedText))
-    } else if (code.match(PreTemplate)) {
-      matchedText = code.match(PreTemplate)[0]
-
-      nodes.push(new Token('PreTemplate', matchedText))
-    } else if (code.match(EndTemplate)) {
-      matchedText = code.match(EndTemplate)[0]
-
-      nodes.push(new Token('EndTemplate', matchedText))
-    } else if (code.match(Comma)) {
-      matchedText = code.match(Comma)[0]
-
-      nodes.push(new Token('Comma', matchedText))
-    } else {
-      return null
-    }
-
-    code = code.slice(matchedText.length)
+  return new StandardDataSource({
+    name: config.name,
+    baseClasses: _.uniqBy(baseClasses, base => base.name),
+    mods
+  })
+}
+export class SwaggerV2Reader extends OriginBaseReader {
+  /**
+   * @description 解析api.json
+   */
+  transform2Standard (data: SwaggerDataSource) {
+    return transformSwaggerData2Standard(data, this.config)
   }
-
-  return new Parser(nodes).parseTemplate()
 }

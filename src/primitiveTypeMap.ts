@@ -21,5 +21,8 @@ export const PrimitiveTypeMap = {
   map: 'ObjectMap',
 
   /* Array */
-  List: 'Array'
-};
+  List: 'Array',
+
+  /** File */
+  file: 'File'
+}

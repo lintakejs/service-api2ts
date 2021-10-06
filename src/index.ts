@@ -1,5 +1,5 @@
-import { Interface } from './standard'
+import { StandardInterface } from './standard/'
 
 export {
-  Interface
+  StandardInterface
 }

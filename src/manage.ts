@@ -1,61 +1,63 @@
 import * as path from 'path'
 import { DataSourceConfig } from './config/config'
-import { FilesManager, CodeGenerator, FileStructures } from './generators/generate'
+import { CodeGenerator, FileStructures, FilesManager } from './generators/'
 import { readRemoteDataSource } from './reader'
-import { StandardDataSource } from './standard'
+import { StandardDataSource } from './standard/'
 import { getTemplate } from './utils'
+
+/**
+ * @description 查询数据源
+ */
+async function getRemoteDataSource (config: DataSourceConfig) {
+  const remoteDataSource = await readRemoteDataSource(config)
+
+  return remoteDataSource
+}
 
 export class Manager {
   currLocalDataSource: StandardDataSource
   currConfig: DataSourceConfig
   fileManager: FilesManager
-  
-  constructor(config: DataSourceConfig, configDir = process.cwd()) {
+
+  constructor (config: DataSourceConfig, configDir = process.cwd()) {
     this.currConfig = {
       ...config,
       outDir: path.join(configDir, config.outDir),
-      modsTemplatePath: config.modsTemplatePath ? path.join(configDir, config.modsTemplatePath) : undefined,
-      modsTypeTemplatePath: config.modsTypeTemplatePath ? path.join(configDir, config.modsTypeTemplatePath) : undefined
+      modsTemplatePath: config.modsTemplatePath ? path.join(configDir, config.modsTemplatePath) : undefined
     }
+
+    this.fileManager = new FilesManager(this.currConfig.outDir, this.currConfig.eslinttrcPath)
   }
 
-  async ready() {
-    this.currLocalDataSource = await this.readRemoteDataSource(this.currConfig)
-
-    await this.regenerateFiles()
-  }
-  /**
-   * @description 查询数据源
-   */
-  async readRemoteDataSource(config) {
-    const remoteDataSource = await readRemoteDataSource(config);
-    
-    return remoteDataSource
-  }
   /**
    * @description 将需要编译的文件编译成api文件
    */
-  async regenerateFiles() {
+  private async generateFiles () {
     const files = this.getGeneratedFiles()
     await this.fileManager.regenerate(files)
   }
+
   /**
    * @description 获取编译文件
    */
-  getGeneratedFiles() {
-    this.setFilesManager()
-    const files = this.fileManager.fileStructures.getFileStructures()
+  private getGeneratedFiles () {
+    const generator = new CodeGenerator(
+      this.currLocalDataSource,
+      getTemplate(this.currConfig.modsTemplatePath),
+      this.currConfig
+    )
+
+    const fileStructure = new FileStructures(this.currConfig.mocksDev)
+    const files = fileStructure.getOriginFileStructures(generator)
     return files
   }
-  /**
-   * @description 文件生成器
-   */
-  setFilesManager() {
-    const generator = new CodeGenerator(this.currConfig.surrounding, this.currConfig.outDir, getTemplate(this.currConfig.modsTemplatePath), getTemplate(this.currConfig.modsTypeTemplatePath, false))
-    generator.setDataSource(this.currLocalDataSource)
 
-    const fileStructure = new FileStructures(generator, this.currConfig.surrounding)
-    this.fileManager = new FilesManager(fileStructure, this.currConfig.outDir)
-    this.fileManager.prettierConfig = this.currConfig.prettierConfig
+  /**
+   * @description
+   */
+  async remoteApiJson () {
+    this.currLocalDataSource = await getRemoteDataSource(this.currConfig)
+
+    await this.generateFiles()
   }
 }

@@ -1,6 +1,6 @@
 {
   "name": "service-api2ts",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "base swagger v2 ts API",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",

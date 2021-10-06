@@ -5,7 +5,7 @@
 2. 对于 api 服务多方改动引起的无效沟通过多问题。
 3. 前端目前对服务器 mock 自动化不足问题。
 
-[工具架构图]('./static/service-api2ts.xmind')
+[工具架构图]('/static/service-api2ts.xmind')
 ## 如何使用？
 首先安装插件
 ```nodejs
